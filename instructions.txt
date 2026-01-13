@@ -1,47 +1,78 @@
-ADD x3, x1, x2
-SUB x4, x3, x1
-AND x5, x4, x2
-OR  x6, x5, x1
-XOR x7, x6, x2
-
-ADD x8, x7, x3
-SUB x9, x8, x4
-AND x10, x9, x5
-OR  x11, x10, x6
-XOR x12, x11, x7
-
-ADD x13, x12, x8
-SUB x14, x13, x9
-AND x15, x14, x10
-OR  x16, x15, x11
-XOR x17, x16, x12
-
-ADD x18, x17, x13
-SUB x19, x18, x14
-AND x20, x19, x15
-OR  x21, x20, x16
-XOR x22, x21, x17
-
-ADD x23, x22, x18
-SUB x24, x23, x19
-AND x25, x24, x20
-OR  x26, x25, x21
-XOR x27, x26, x22
-
-ADD x28, x27, x23
-SUB x29, x28, x24
-AND x30, x29, x25
-OR  x31, x30, x26
-XOR x3,  x31, x27
-
-ADD x4,  x3,  x28
-SUB x5,  x4,  x29
-AND x6,  x5,  x30
-OR  x7,  x6,  x31
-XOR x8,  x7,  x3
-
-ADD x9,  x8,  x4
-SUB x10, x9,  x5
-AND x11, x10, x6
-OR  x12, x11, x7
-XOR x13, x12, x8
+lui x1,1
+lui x2,2
+lui x3,3
+lui x4,4
+lui x5,5
+addi x1,x1,10
+addi x2,x2,20
+addi x3,x3,30
+addi x4,x4,40
+addi x5,x5,50
+add x6,x1,x2
+add x7,x6,x3
+add x8,x7,x4
+add x9,x8,x5
+add x10,x9,x6
+add x11,x10,x7
+add x12,x11,x8
+add x13,x12,x9
+add x14,x13,x10
+sw x6,0(x0)
+sw x7,4(x0)
+sw x8,8(x0)
+sw x9,12(x0)
+sw x10,16(x0)
+lw x15,0(x0)
+add x16,x15,x1
+lw x17,4(x0)
+add x18,x17,x2
+lw x19,8(x0)
+add x20,x19,x3
+lw x21,12(x0)
+add x22,x21,x4
+add x23,x22,x21
+sw x23,20(x0)
+lw x24,20(x0)
+add x25,x24,x23
+add x26,x25,x24
+add x27,x26,x25
+add x28,x27,x26
+add x29,x28,x27
+add x30,x29,x28
+add x31,x30,x29
+beq x31,x0,48      
+addi x1,x1,1
+addi x2,x2,2
+addi x3,x3,3
+beq x31,x31,48     
+addi x4,x4,4       
+addi x5,x5,5       
+addi x6,x6,6      
+addi x7,x7,7
+addi x8,x8,8
+addi x9,x9,9
+addi x10,x10,10
+bne x7,x8,48
+addi x11,x11,11    
+addi x12,x12,12      
+addi x14,x14,14
+addi x15,x15,15
+addi x16,x16,16
+addi x17,x17,17
+auipc x18,0
+addi  x18,x18,4
+add x19,x18,x17
+add x20,x19,x18
+add x21,x20,x19
+add x22,x21,x20
+add x23,x22,x21
+add x24,x23,x22
+beq x24,x24,32
+addi x25,x25,25   
+addi x26,x26,26   
+addi x27,x27,27
+addi x28,x28,28
+addi x29,x29,29
+addi x30,x30,30
+addi x31,x31,31
+halt
