@@ -1,0 +1,47 @@
+ADD x3, x1, x2
+SUB x4, x3, x1
+AND x5, x4, x2
+OR  x6, x5, x1
+XOR x7, x6, x2
+
+ADD x8, x7, x3
+SUB x9, x8, x4
+AND x10, x9, x5
+OR  x11, x10, x6
+XOR x12, x11, x7
+
+ADD x13, x12, x8
+SUB x14, x13, x9
+AND x15, x14, x10
+OR  x16, x15, x11
+XOR x17, x16, x12
+
+ADD x18, x17, x13
+SUB x19, x18, x14
+AND x20, x19, x15
+OR  x21, x20, x16
+XOR x22, x21, x17
+
+ADD x23, x22, x18
+SUB x24, x23, x19
+AND x25, x24, x20
+OR  x26, x25, x21
+XOR x27, x26, x22
+
+ADD x28, x27, x23
+SUB x29, x28, x24
+AND x30, x29, x25
+OR  x31, x30, x26
+XOR x3,  x31, x27
+
+ADD x4,  x3,  x28
+SUB x5,  x4,  x29
+AND x6,  x5,  x30
+OR  x7,  x6,  x31
+XOR x8,  x7,  x3
+
+ADD x9,  x8,  x4
+SUB x10, x9,  x5
+AND x11, x10, x6
+OR  x12, x11, x7
+XOR x13, x12, x8
