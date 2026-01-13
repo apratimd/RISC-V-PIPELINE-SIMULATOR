@@ -6,7 +6,7 @@
 #define REG_COUNT 32
 #define IMEM_SIZE 256
 #define DMEM_SIZE 256
-
+int stall = 0;
 
 ///////////////////////////////////////////////////////// OPCODES ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -158,19 +158,27 @@ void ID_stage() {
     else if (!strcmp(op, "jal"))   { ID_EX_new.op = OP_JAL;   sscanf(IF_ID.instr, "%*s x%d,%d", &ID_EX_new.rd, &ID_EX_new.imm); }
     else if (!strcmp(op, "jalr"))  { ID_EX_new.op = OP_JALR;  sscanf(IF_ID.instr, "%*s x%d,x%d,%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.imm); }
     
-    else if (!strcmp(op, "halt"))  { ID_EX_new.op = OP_HALT; }
+    else if (!strcmp(op, "halt")) 
+    {
+         ID_EX_new.op = OP_HALT; 
+         ID_EX_new.ctrl = (control_t){0};
+    }   
+
     else { ID_EX_new.op = OP_NOP; }
 
-    // Load-Use Hazard Detection
-    // If previous instruction was a Load and it writes to a register this instruction needs, we stall.
+   stall = 0;
+
     if (ID_EX_old.valid && ID_EX_old.ctrl.MemRead) {
-        if (ID_EX_old.rd != 0 && (ID_EX_old.rd == ID_EX_new.rs1 || ID_EX_old.rd == ID_EX_new.rs2)) {
-            ID_EX_new.valid = 0; // Turn this cycle into a bubble
-            pc -= 4;             // Prevent PC from moving so we re-fetch the same instruction
-            printf("ID  : STALL (Load-Use Hazard detected)\n");
-            return;
-        }
+    if (ID_EX_old.rd != 0 &&
+        (ID_EX_old.rd == ID_EX_new.rs1 ||
+         ID_EX_old.rd == ID_EX_new.rs2)) {
+
+        stall = 1;
+        ID_EX_new.valid = 0;   // bubble into EX
+        printf("ID  : STALL (Load-Use Hazard)\n");
+        return;
     }
+}
 
     ID_EX_new.ctrl = control(ID_EX_new.op);
     ID_EX_new.v1 = reg_file[ID_EX_new.rs1];
@@ -181,7 +189,7 @@ void ID_stage() {
 int forward_ex(int rs, int val) {
     if (rs == 0) return 0; // x0 is always 0
 
-    // Forward from EX/MEM (Prioritize most recent result)
+    // Forward from EX/MEM 
     if (EX_MEM_old.valid && EX_MEM_old.ctrl.RegWrite && EX_MEM_old.rd == rs) {
         return EX_MEM_old.alu;
     }
@@ -253,9 +261,15 @@ void EX_stage() {
         else 
             pc = ID_EX_old.pc + ID_EX_old.imm; // Branch or JAL
 
-        // Flush IF/ID to simulate 1-cycle penalty for control hazard
+        //  IF/ID flushed to simulate 1-cycle penalty for control hazard
         IF_ID.valid = 0;
         printf("EX  : CONTROL HAZARD | Redirecting PC to %d | Flushed IF/ID\n", pc);
+    }
+    if (ID_EX_old.op == OP_HALT) {
+        EX_MEM_new.valid = 1;
+        EX_MEM_new.op = OP_HALT;
+        EX_MEM_new.ctrl = (control_t){0};
+        return;
     }
 
     printf("EX  : ALU=%-5d | EX/MEM : rd=%d alu=%d\n", 
@@ -269,6 +283,11 @@ void MEM_stage() {
         printf("MEM : IDLE\n");
         return;
     }
+    if (EX_MEM_old.op == OP_HALT) {
+        MEM_WB_new.valid = 1;
+        MEM_WB_new.op = OP_HALT;
+        return;
+    }
 
     MEM_WB_new.valid = 1;
     MEM_WB_new.op = EX_MEM_old.op;
@@ -279,6 +298,18 @@ void MEM_stage() {
     int addr = EX_MEM_old.alu;
     int word_addr = addr / 4;
     int byte_offset = addr % 4;
+    if ((EX_MEM_old.op == OP_SH || EX_MEM_old.op == OP_LH || EX_MEM_old.op == OP_LHU) &&
+    (addr % 2 != 0)) {
+    printf("MISALIGNED HALF ACCESS at %d\n", addr);
+    exit(1);
+    }
+
+    if ((EX_MEM_old.op == OP_SW || EX_MEM_old.op == OP_LW) &&
+    (addr % 4 != 0)) {
+        printf("MISALIGNED WORD ACCESS at %d\n", addr);
+        exit(1);
+    }
+
 
     // --- MEMORY READ (LOADS) ---
     if (EX_MEM_old.ctrl.MemRead) {
@@ -305,28 +336,24 @@ void MEM_stage() {
         printf("MEM : LOAD mem[%d] = %d\n", addr, MEM_WB_new.mem_data);
     }
 
-    // --- MEMORY WRITE (STORES) ---
-    if (EX_MEM_old.ctrl.MemWrite) {
-        int mask, val_to_store;
-        int current_mem = data_memory[word_addr];
+    switch (EX_MEM_old.op) {
 
-        switch (EX_MEM_old.op) {
-            case OP_SB: // Store Byte
-                mask = 0xFF << (byte_offset * 8);
-                val_to_store = (EX_MEM_old.store_val & 0xFF) << (byte_offset * 8);
-                data_memory[word_addr] = (current_mem & ~mask) | val_to_store;
-                break;
-            case OP_SH: // Store Half
-                mask = 0xFFFF << (byte_offset * 8);
-                val_to_store = (EX_MEM_old.store_val & 0xFFFF) << (byte_offset * 8);
-                data_memory[word_addr] = (current_mem & ~mask) | val_to_store;
-                break;
-            case OP_SW: // Store Word
-            default:
-                data_memory[word_addr] = EX_MEM_old.store_val;
-                break;
-        }
-        printf("MEM : STORE mem[%d] = %d\n", addr, EX_MEM_old.store_val);
+    case OP_SB: {
+        unsigned char *p = (unsigned char *)&data_memory[word_addr];
+        p[byte_offset] = EX_MEM_old.store_val & 0xFF;
+        break;
+    }
+
+    case OP_SH: {
+        unsigned char *p = (unsigned char *)&data_memory[word_addr];
+        p[byte_offset]     = EX_MEM_old.store_val & 0xFF;
+        p[byte_offset + 1] = (EX_MEM_old.store_val >> 8) & 0xFF;
+        break;
+    }
+
+    case OP_SW:
+        data_memory[word_addr] = EX_MEM_old.store_val;
+        break;
     }
 }
 
@@ -339,28 +366,29 @@ void WB_stage() {
         reg_file[MEM_WB_old.rd] = MEM_WB_old.ctrl.MemToReg ? MEM_WB_old.mem_data : MEM_WB_old.alu;
 }
 
-
-///////////////////////////////////////////////////////////// DUMP DATA MEMORY ///////////////////////////////////////////////////////////////////////////////////
-void dump_data_memory(const char *filename) {
-    FILE *fp = fopen(filename, "w");
-    if (!fp) {
-        printf("Error: Could not create %s\n", filename);
+///////////////////////////////////////////////// HELPER FUNCTION /////////////////////////////////////////////////////////////////////////////////////////////
+void load_data_memory(const char *filename) {
+    FILE *fp = fopen(filename, "r");
+    if (!fp) 
+        printf("not found");
         return;
-    }
-
-    fprintf(fp, "Address | Decimal    | Hexadecimal\n");
-    fprintf(fp, "-----------------------------------\n");
-    for (int i = 0; i < DMEM_SIZE; i++) {
-        // Only dump memory that isn't zero to keep the file readable
-        if (data_memory[i] != 0) {
-            fprintf(fp, "%07d | %-10d | 0x%08X\n", i * 4, data_memory[i], data_memory[i]);
-        }
+    int addr = 0, val = 0;
+    while (fscanf(fp, "%d %d", &addr, &val) != EOF) {
+        if (addr / 4 < DMEM_SIZE) data_memory[addr / 4] = val;
     }
     fclose(fp);
-    printf("Final data memory state dumped to %s\n", filename);
+}
+
+void dump_data_memory(const char *filename) {
+    FILE *fp = fopen(filename, "w");
+    for (int i = 0; i < DMEM_SIZE; i++) {
+        if (data_memory[i] != 0) fprintf(fp, "%d: %d\n", i * 4, data_memory[i]);
+    }
+    fclose(fp);
 }
 
 ////////////////////////////////////////////////////////////// MAIN FUNCTION /////////////////////////////////////////////////////////////////////////////////////////
+
 int main(int argc, char *argv[]) {
     printf("DEBUG: argc=%d, argv[0]=%s, argv[1]=%s\n", argc, argv[0], (argc > 1 ? argv[1] : "NONE"));
     // Determine which file to open
@@ -396,35 +424,39 @@ int main(int argc, char *argv[]) {
     printf("--- Loaded %d instructions from %s ---\n", n, inst_file);
 
     // 4. Simulation Loop
-    while (!halt_done || IF_ID.valid || ID_EX_old.valid || EX_MEM_old.valid || MEM_WB_old.valid) {
+    while (!(halt_done && !IF_ID.valid && !ID_EX_old.valid && !EX_MEM_old.valid && !MEM_WB_old.valid))
+    {
         cycle++;
-        // (Optional) printf("\n--- CYCLE %d ---\n", cycle);
+        printf("\n--- CYCLE %d ---\n", cycle);
 
         WB_stage();
         MEM_stage();
         EX_stage();
         ID_stage();
 
-        // IF Stage
-        if (!halt_fetched && (pc / 4) < n) {
-            if (ID_EX_new.valid || !IF_ID.valid) { 
-                IF_ID.valid = 1;
-                IF_ID.pc = pc;
-                strcpy(IF_ID.instr, instruction_memory[pc / 4]);
-                if (strstr(IF_ID.instr, "halt")) halt_fetched = 1;
-                pc += 4;
-            }
-        } else {
+    
+        ID_EX_old   = ID_EX_new;
+        EX_MEM_old  = EX_MEM_new;
+        MEM_WB_old  = MEM_WB_new;
+
+        
+        if (stall) {
+        // Freeze IF/ID and PC
+            printf("       → PC and IF/ID frozen\n");
+        }
+        else if (!halt_fetched && (pc / 4) < n) {
+        IF_ID.valid = 1;
+        IF_ID.pc    = pc;
+        strcpy(IF_ID.instr, instruction_memory[pc / 4]);
+        if (!strcmp(IF_ID.instr, "halt")) halt_fetched = 1;
+            pc += 4;
+        }
+        else {
             IF_ID.valid = 0;
         }
 
-        ID_EX_old  = ID_EX_new;
-        EX_MEM_old = EX_MEM_new;
-        MEM_WB_old = MEM_WB_new;
-
-        if (cycle > 10000) break; 
-    }
-
+        
+}
     // 5. Final Report
     printf("\nTEST RESULT for %s:\n", inst_file);
     printf("Total Cycles: %d\n", cycle);
@@ -435,6 +467,6 @@ int main(int argc, char *argv[]) {
     char dump_name[MAX_LEN];
     sprintf(dump_name, "dump_%s", inst_file);
     dump_data_memory(dump_name);
-
     return 0;
 }
+

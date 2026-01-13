@@ -1,0 +1,12 @@
+addi x1, x0, 15
+addi x2, x0, 4
+add x3, x1, x2
+sub x4, x1, x2
+sll x5, x1, x2
+srl x6, x1, x2
+addi x10, x0, -1
+sra x11, x10, x2
+and x12, x1, x2
+or x13, x1, x2
+xor x14, x1, x2
+halt
