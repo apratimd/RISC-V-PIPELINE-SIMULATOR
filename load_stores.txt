@@ -1,0 +1,19 @@
+addi x1,x0,0
+addi x2,x0,305419896
+sw x2,0(x1)
+
+lb x3,0(x1)
+lbu x4,0(x1)
+lh x5,0(x1)
+lhu x6,0(x1)
+lw x7,0(x1)
+
+addi x8,x0,4660
+sb x8,1(x1)
+sh x8,2(x1)
+
+lb x9,1(x1)
+lh x10,2(x1)
+lw x11,0(x1)
+
+halt
