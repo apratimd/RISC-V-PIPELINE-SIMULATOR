@@ -442,7 +442,7 @@ int main(int argc, char *argv[]) {
         
         if (stall) {
         // Freeze IF/ID and PC
-            printf("       → PC and IF/ID frozen\n");
+            printf("  PC and IF/ID frozen\n");
         }
         else if (!halt_fetched && (pc / 4) < n) {
         IF_ID.valid = 1;
