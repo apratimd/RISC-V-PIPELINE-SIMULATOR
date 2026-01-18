@@ -7,7 +7,8 @@
 #define IMEM_SIZE 256
 #define DMEM_SIZE 256
 int stall = 0;
-
+int pc_redirect = 0;
+int pc_next = 0;
 ///////////////////////////////////////////////////////// OPCODES ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 typedef enum {
@@ -105,6 +106,33 @@ MEM_WB_t MEM_WB_old = {0}, MEM_WB_new = {0};
 
 
 /////////////////////////////////////////////////////////////////// Pipeline stages ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////// IF STAGE ///////////////////////////////////////////////////////
+void IF_stage(int instr_count) {
+
+    if (stall) {
+        printf("IF  : STALL (PC frozen)\n");
+        return;
+    }
+
+    if (pc_redirect) {
+        pc = pc_next;
+        pc_redirect = 0;
+    }
+
+    if (halt_fetched || (pc / 4) >= instr_count) {
+        IF_ID.valid = 0;
+        return;
+    }
+
+    IF_ID.valid = 1;
+    IF_ID.pc = pc;
+    strcpy(IF_ID.instr, instruction_memory[pc / 4]);
+
+    if (!strcmp(IF_ID.instr, "halt"))
+        halt_fetched = 1;
+
+    pc += 4;
+}
 
 ////////////////////////////////////////////////////////////////// ID STAGE ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -190,7 +218,8 @@ int forward_ex(int rs, int val) {
     if (rs == 0) return 0; // x0 is always 0
 
     // Forward from EX/MEM 
-    if (EX_MEM_old.valid && EX_MEM_old.ctrl.RegWrite && EX_MEM_old.rd == rs) {
+    if (EX_MEM_old.valid && EX_MEM_old.ctrl.RegWrite &&
+    !EX_MEM_old.ctrl.MemRead && EX_MEM_old.rd == rs) {
         return EX_MEM_old.alu;
     }
 
@@ -235,8 +264,13 @@ void EX_stage() {
         case OP_SLTU: case OP_SLTIU: EX_MEM_new.alu = ((unsigned int)a < (unsigned int)b) ? 1 : 0; break;
         case OP_LUI:                EX_MEM_new.alu = ID_EX_old.imm << 12; break;
         case OP_AUIPC:              EX_MEM_new.alu = ID_EX_old.pc + (ID_EX_old.imm << 12); break;
-        case OP_JAL:  case OP_JALR:  EX_MEM_new.alu = ID_EX_old.pc + 4; break; // Save return address
-        default:                    EX_MEM_new.alu = a + b; break;
+        case OP_JAL:  case OP_JALR:  EX_MEM_new.alu = ID_EX_old.pc + 4; break;
+        case OP_BEQ: case OP_BNE: case OP_BLT:
+        case OP_BGE: case OP_BLTU: case OP_BGEU:
+            EX_MEM_new.alu = 0;
+            break;
+        // Save return address
+            default:                    EX_MEM_new.alu = a + b; break;
     }
 
     EX_MEM_new.store_val = rs2_val;
@@ -256,15 +290,20 @@ void EX_stage() {
     }
 
     if (take_branch || ID_EX_old.op == OP_JAL || ID_EX_old.op == OP_JALR) {
-        if (ID_EX_old.op == OP_JALR) 
-            pc = (a + ID_EX_old.imm) & ~1; // JALR sets LSB to 0
-        else 
-            pc = ID_EX_old.pc + ID_EX_old.imm; // Branch or JAL
+        if(ID_EX_old.op==OP_JALR)
+            pc_next = (a + ID_EX_old.imm) & ~1;
+        else
+            pc_next = ID_EX_old.pc + (ID_EX_old.imm << 2);
+    
+        pc_redirect = 1;
 
-        //  IF/ID flushed to simulate 1-cycle penalty for control hazard
-        IF_ID.valid = 0;
-        printf("EX  : CONTROL HAZARD | Redirecting PC to %d | Flushed IF/ID\n", pc);
+        IF_ID.valid = 0;       // flush IF
+        ID_EX_new.valid = 0;   // flush ID
+
+        printf("EX  : CONTROL HAZARD | Redirecting PC to %d\n", pc_next);
     }
+
+
     if (ID_EX_old.op == OP_HALT) {
         EX_MEM_new.valid = 1;
         EX_MEM_new.op = OP_HALT;
@@ -433,6 +472,7 @@ int main(int argc, char *argv[]) {
         MEM_stage();
         EX_stage();
         ID_stage();
+        IF_stage(n);
 
     
         ID_EX_old   = ID_EX_new;
@@ -440,20 +480,7 @@ int main(int argc, char *argv[]) {
         MEM_WB_old  = MEM_WB_new;
 
         
-        if (stall) {
-        // Freeze IF/ID and PC
-            printf("  PC and IF/ID frozen\n");
-        }
-        else if (!halt_fetched && (pc / 4) < n) {
-        IF_ID.valid = 1;
-        IF_ID.pc    = pc;
-        strcpy(IF_ID.instr, instruction_memory[pc / 4]);
-        if (!strcmp(IF_ID.instr, "halt")) halt_fetched = 1;
-            pc += 4;
-        }
-        else {
-            IF_ID.valid = 0;
-        }
+        
 
         
 }
