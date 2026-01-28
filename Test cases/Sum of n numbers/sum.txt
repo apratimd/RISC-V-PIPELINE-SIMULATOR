@@ -1,0 +1,12 @@
+addi x1,x0,0
+addi x2,x0,5
+addi x4,x0,0
+lw x5,0(x1)
+addi x0,x0,0
+addi x0,x0,0
+add x4,x4,x5
+addi x1,x1,4
+addi x2,x2,-1
+bne x2,x0,-6
+sw x4,100(x0)
+halt
