@@ -177,7 +177,7 @@ Addresses are byte addresses and are internally mapped to word indices.
 
 ### Compile
 ```
-gcc pipeline.c -o pipeline
+gcc '.\5 STAGE PIPELINE SIMULATOR_v3.c' -o pipeline.exe
 ```
 
 ### Run
