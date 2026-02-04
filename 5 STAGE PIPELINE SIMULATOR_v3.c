@@ -187,6 +187,11 @@ MEM_WB_t MEM_WB_old = {0}, MEM_WB_new = {0};
 ////////////////////////////////////////////////////////////////// IF STAGE ///////////////////////////////////////////////////////
 void IF_stage(int instr_count)
 {
+    if (pc_redirect)
+    {
+        pc = pc_next;
+        pc_redirect = 0;
+    }
 
     if (stall)
     {
@@ -194,13 +199,7 @@ void IF_stage(int instr_count)
         return;
     }
 
-    if (pc_redirect)
-    {
-        pc = pc_next;
-        pc_redirect = 0;
-    }
-
-    if (halt_fetched || (pc / 4) >= instr_count)
+    if ((pc / 4) >= instr_count)
     {
         IF_ID.valid = 0;
         return;
@@ -220,18 +219,15 @@ void IF_stage(int instr_count)
 
 void ID_stage()
 {
+
+    ID_EX_new = (ID_EX_t){0};
     if (stall)
     {
         ID_EX_new.valid = 0;
         return;
     }
     if (!IF_ID.valid)
-    {
-        ID_EX_new.valid = 0;
         return;
-    }
-
-    ID_EX_new = (ID_EX_t){0};
     ID_EX_new.valid = 1;
     ID_EX_new.pc = IF_ID.pc;
 
@@ -377,6 +373,7 @@ void ID_stage()
 
     else if (!strcmp(op, "halt"))
     {
+        ID_EX_new.valid = 1;
         ID_EX_new.op = OP_HALT;
         ID_EX_new.ctrl = (control_t){0};
     }
@@ -386,29 +383,16 @@ void ID_stage()
         ID_EX_new.op = OP_NOP;
     }
 
-    stall = 0;
-
-    static int load_stall = 0;
-
-    if (load_stall)
+    if (IF_ID.valid &&
+        ID_EX_old.valid &&
+        ID_EX_old.ctrl.MemRead &&
+        ID_EX_old.rd != 0 &&
+        (ID_EX_old.rd == ID_EX_new.rs1 ||
+         ID_EX_old.rd == ID_EX_new.rs2))
     {
-        load_stall = 0;
         stall = 1;
-        ID_EX_new.valid = 0;
+        ID_EX_new = (ID_EX_t){0}; // insert bubble
         return;
-    }
-
-    if (ID_EX_old.valid && ID_EX_old.ctrl.MemRead)
-    {
-        if (ID_EX_old.rd != 0 &&
-            (ID_EX_old.rd == ID_EX_new.rs1 ||
-             ID_EX_old.rd == ID_EX_new.rs2))
-        {
-
-            stall = 1;
-            ID_EX_new.valid = 0;
-            return;
-        }
     }
 
     ID_EX_new.ctrl = control(ID_EX_new.op);
@@ -454,6 +438,7 @@ int forward_ex(int rs, int val)
 ////////////////////////////////////////////////////////////////////////////EX STAGE //////////////////////////////////////////////////////////////////////////////////////////
 void EX_stage()
 {
+    EX_MEM_new = (EX_MEM_t){0};
     if (!ID_EX_old.valid)
     {
         EX_MEM_new.valid = 0;
@@ -610,16 +595,14 @@ void EX_stage()
 
     if (take_branch || ID_EX_old.op == OP_JAL || ID_EX_old.op == OP_JALR)
     {
-        if (ID_EX_old.op == OP_JALR)
-            pc_next = (a + ID_EX_old.imm) & ~1;
-        else
-            pc_next = ID_EX_old.pc + (ID_EX_old.imm << 2);
+        pc_next = (ID_EX_old.op == OP_JALR)
+                      ? ((a + ID_EX_old.imm) & ~1)
+                      : (ID_EX_old.pc + ID_EX_old.imm );
 
         pc_redirect = 1;
 
-        IF_ID.valid = 0; // flush IF
-
-        printf("EX  : CONTROL HAZARD | Redirecting PC to %d\n", pc_next);
+        IF_ID.valid = 0;
+        ID_EX_new.valid = 0;
     }
 
     if (ID_EX_old.op == OP_HALT)
@@ -637,10 +620,9 @@ void EX_stage()
 ////////////////////////////////////////////////////////////////// MEM STAGE //////////////////////////////////////////////////////////////////////////////////////////
 void MEM_stage()
 {
+    MEM_WB_new = (MEM_WB_t){0};
     if (!EX_MEM_old.valid)
     {
-        MEM_WB_new.valid = 0;
-        printf("MEM : IDLE\n");
         return;
     }
     if (EX_MEM_old.op == OP_HALT)
@@ -736,6 +718,7 @@ void MEM_stage()
         break;
     }
 }
+
 //////////////////////////////////////////////////////////////// WB STAGE ///////////////////////////////////////////////////////////////////////////////////////////
 
 void WB_stage()
@@ -807,6 +790,7 @@ int main(int argc, char *argv[])
     ID_EX_old = ID_EX_new = (ID_EX_t){0};
     EX_MEM_old = EX_MEM_new = (EX_MEM_t){0};
     MEM_WB_old = MEM_WB_new = (MEM_WB_t){0};
+    MEM_WB_new.valid = 0;
 
     // 2. Load Data Memory (Always loads from data.txt)
     load_data_memory("data.txt");
@@ -828,9 +812,15 @@ int main(int argc, char *argv[])
     printf("--- Loaded %d instructions from %s ---\n", n, inst_file);
 
     // 4. Simulation Loop
-    while (!(halt_done && !IF_ID.valid && !ID_EX_old.valid && !EX_MEM_old.valid && !MEM_WB_old.valid))
+    while (!(halt_done &&
+             !IF_ID.valid &&
+             !ID_EX_old.valid &&
+             !EX_MEM_old.valid &&
+             !MEM_WB_old.valid))
+
     {
         cycle++;
+        stall = 0;
         printf("\n--- CYCLE %d ---\n", cycle);
 
         WB_stage();
