@@ -12,6 +12,37 @@ int pc_next = 0;
 int mem_forward_valid = 0;
 int mem_forward_rd = 0;
 int mem_forward_data = 0;
+/////////////////////////////////////////////////////////
+// RISC-V REGISTER NAME TABLE
+/////////////////////////////////////////////////////////
+
+const char *reg_names[32] =
+    {
+        "zero", "ra", "sp", "gp", "tp",
+        "t0", "t1", "t2",
+        "s0", "s1",
+        "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7",
+        "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11",
+        "t3", "t4", "t5", "t6"};
+/////////////////////////////////////////////////////////
+// REGISTER NAME PARSER
+/////////////////////////////////////////////////////////
+
+int reg_index(char *name)
+{
+    /* allow x0-x31 */
+    if (name[0] == 'x')
+        return atoi(name + 1);
+
+    for (int i = 0; i < 32; i++)
+    {
+        if (strcmp(name, reg_names[i]) == 0)
+            return i;
+    }
+
+    printf("ERROR: Unknown register %s\n", name);
+    exit(1);
+}
 
 ///////////////////////////////////////////////////////// OPCODES ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -232,144 +263,278 @@ void ID_stage()
     ID_EX_new.pc = IF_ID.pc;
 
     char op[16];
+    char rd[8], rs1[8], rs2[8];
     sscanf(IF_ID.instr, "%s", op);
+    ////////////////////////////////////////////////////
+    // R-TYPE: op rd, rs1, rs2
+    ////////////////////////////////////////////////////
 
-    // --- R-TYPE: instr rd, rs1, rs2 ---
     if (!strcmp(op, "add"))
     {
         ID_EX_new.op = OP_ADD;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,x%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.rs2);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%s", rd, rs1, rs2);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
+
     else if (!strcmp(op, "sub"))
     {
         ID_EX_new.op = OP_SUB;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,x%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.rs2);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%s", rd, rs1, rs2);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
+
     else if (!strcmp(op, "sll"))
     {
         ID_EX_new.op = OP_SLL;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,x%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.rs2);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%s", rd, rs1, rs2);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
+
     else if (!strcmp(op, "srl"))
     {
         ID_EX_new.op = OP_SRL;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,x%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.rs2);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%s", rd, rs1, rs2);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
+
     else if (!strcmp(op, "sra"))
     {
         ID_EX_new.op = OP_SRA;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,x%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.rs2);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%s", rd, rs1, rs2);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
+
     else if (!strcmp(op, "xor"))
     {
         ID_EX_new.op = OP_XOR;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,x%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.rs2);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%s", rd, rs1, rs2);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
+
     else if (!strcmp(op, "or"))
     {
         ID_EX_new.op = OP_OR;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,x%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.rs2);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%s", rd, rs1, rs2);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
+
     else if (!strcmp(op, "and"))
     {
         ID_EX_new.op = OP_AND;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,x%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.rs2);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%s", rd, rs1, rs2);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
 
-    // --- I-TYPE (ALU): instr rd, rs1, imm ---
+    ////////////////////////////////////////////////////
+    // I-TYPE ALU: rd, rs1, imm
+    ////////////////////////////////////////////////////
+
     else if (!strcmp(op, "addi"))
     {
         ID_EX_new.op = OP_ADDI;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.imm);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%d", rd, rs1, &ID_EX_new.imm);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
     }
+
     else if (!strcmp(op, "slli"))
     {
         ID_EX_new.op = OP_SLLI;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.imm);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%d", rd, rs1, &ID_EX_new.imm);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
     }
+
     else if (!strcmp(op, "srli"))
     {
         ID_EX_new.op = OP_SRLI;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.imm);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%d", rd, rs1, &ID_EX_new.imm);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
     }
+
     else if (!strcmp(op, "srai"))
     {
         ID_EX_new.op = OP_SRAI;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.imm);
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%d", rd, rs1, &ID_EX_new.imm);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
     }
 
-    // --- I-TYPE (LOADS): instr rd, imm(rs1) ---
+    ////////////////////////////////////////////////////
+    // LOADS: rd, imm(rs1)
+    ////////////////////////////////////////////////////
+
     else if (!strcmp(op, "lw"))
     {
         ID_EX_new.op = OP_LW;
-        sscanf(IF_ID.instr, "%*s x%d,%d(x%d)", &ID_EX_new.rd, &ID_EX_new.imm, &ID_EX_new.rs1);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%d(%[^)])", rd, &ID_EX_new.imm, rs1);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
     }
+
     else if (!strcmp(op, "lb"))
     {
         ID_EX_new.op = OP_LB;
-        sscanf(IF_ID.instr, "%*s x%d,%d(x%d)", &ID_EX_new.rd, &ID_EX_new.imm, &ID_EX_new.rs1);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%d(%[^)])", rd, &ID_EX_new.imm, rs1);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
     }
+
     else if (!strcmp(op, "lh"))
     {
         ID_EX_new.op = OP_LH;
-        sscanf(IF_ID.instr, "%*s x%d,%d(x%d)", &ID_EX_new.rd, &ID_EX_new.imm, &ID_EX_new.rs1);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%d(%[^)])", rd, &ID_EX_new.imm, rs1);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
     }
 
-    // --- S-TYPE (STORES): instr rs2, imm(rs1) ---
+    ////////////////////////////////////////////////////
+    // STORES: rs2, imm(rs1)
+    ////////////////////////////////////////////////////
+
     else if (!strcmp(op, "sw"))
     {
         ID_EX_new.op = OP_SW;
-        sscanf(IF_ID.instr, "%*s x%d,%d(x%d)", &ID_EX_new.rs2, &ID_EX_new.imm, &ID_EX_new.rs1);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%d(%[^)])", rs2, &ID_EX_new.imm, rs1);
+
+        ID_EX_new.rs2 = reg_index(rs2);
+        ID_EX_new.rs1 = reg_index(rs1);
     }
+
     else if (!strcmp(op, "sb"))
     {
         ID_EX_new.op = OP_SB;
-        sscanf(IF_ID.instr, "%*s x%d,%d(x%d)", &ID_EX_new.rs2, &ID_EX_new.imm, &ID_EX_new.rs1);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%d(%[^)])", rs2, &ID_EX_new.imm, rs1);
+
+        ID_EX_new.rs2 = reg_index(rs2);
+        ID_EX_new.rs1 = reg_index(rs1);
     }
 
-    // --- B-TYPE (BRANCHES): instr rs1, rs2, imm ---
+    ////////////////////////////////////////////////////
+    // BRANCHES
+    ////////////////////////////////////////////////////
+
     else if (!strcmp(op, "beq"))
     {
         ID_EX_new.op = OP_BEQ;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,%d", &ID_EX_new.rs1, &ID_EX_new.rs2, &ID_EX_new.imm);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%d", rs1, rs2, &ID_EX_new.imm);
+
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
+
     else if (!strcmp(op, "bne"))
     {
         ID_EX_new.op = OP_BNE;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,%d", &ID_EX_new.rs1, &ID_EX_new.rs2, &ID_EX_new.imm);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%d", rs1, rs2, &ID_EX_new.imm);
+
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
+
     else if (!strcmp(op, "blt"))
     {
         ID_EX_new.op = OP_BLT;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,%d", &ID_EX_new.rs1, &ID_EX_new.rs2, &ID_EX_new.imm);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%d", rs1, rs2, &ID_EX_new.imm);
+
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
+
     else if (!strcmp(op, "bge"))
     {
         ID_EX_new.op = OP_BGE;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,%d", &ID_EX_new.rs1, &ID_EX_new.rs2, &ID_EX_new.imm);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%d", rs1, rs2, &ID_EX_new.imm);
+
+        ID_EX_new.rs1 = reg_index(rs1);
+        ID_EX_new.rs2 = reg_index(rs2);
     }
 
-    // --- U-TYPE & J-TYPE ---
+    ////////////////////////////////////////////////////
+    // U-TYPE / J-TYPE
+    ////////////////////////////////////////////////////
+
     else if (!strcmp(op, "lui"))
     {
         ID_EX_new.op = OP_LUI;
-        sscanf(IF_ID.instr, "%*s x%d,%d", &ID_EX_new.rd, &ID_EX_new.imm);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%d", rd, &ID_EX_new.imm);
+
+        ID_EX_new.rd = reg_index(rd);
     }
+
     else if (!strcmp(op, "auipc"))
     {
         ID_EX_new.op = OP_AUIPC;
-        sscanf(IF_ID.instr, "%*s x%d,%d", &ID_EX_new.rd, &ID_EX_new.imm);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%d", rd, &ID_EX_new.imm);
+
+        ID_EX_new.rd = reg_index(rd);
     }
+
     else if (!strcmp(op, "jal"))
     {
         ID_EX_new.op = OP_JAL;
-        sscanf(IF_ID.instr, "%*s x%d,%d", &ID_EX_new.rd, &ID_EX_new.imm);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%d", rd, &ID_EX_new.imm);
+
+        ID_EX_new.rd = reg_index(rd);
     }
+
     else if (!strcmp(op, "jalr"))
     {
         ID_EX_new.op = OP_JALR;
-        sscanf(IF_ID.instr, "%*s x%d,x%d,%d", &ID_EX_new.rd, &ID_EX_new.rs1, &ID_EX_new.imm);
+
+        sscanf(IF_ID.instr, "%*s %[^,],%[^,],%d", rd, rs1, &ID_EX_new.imm);
+
+        ID_EX_new.rd = reg_index(rd);
+        ID_EX_new.rs1 = reg_index(rs1);
     }
+
+    ////////////////////////////////////////////////////
+    // HALT
+    ////////////////////////////////////////////////////
 
     else if (!strcmp(op, "halt"))
     {
@@ -597,7 +762,7 @@ void EX_stage()
     {
         pc_next = (ID_EX_old.op == OP_JALR)
                       ? ((a + ID_EX_old.imm) & ~1)
-                      : (ID_EX_old.pc + ID_EX_old.imm );
+                      : (ID_EX_old.pc + ID_EX_old.imm);
 
         pc_redirect = 1;
 
@@ -839,7 +1004,7 @@ int main(int argc, char *argv[])
     for (int i = 1; i < REG_COUNT; i++)
     {
         if (reg_file[i] != 0)
-            printf("  x%d = %d\n", i, reg_file[i]);
+           printf("  %-4s (x%d) = %d\n", reg_names[i], i, reg_file[i]);
     }
 
     char dump_name[MAX_LEN];
