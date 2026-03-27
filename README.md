@@ -211,6 +211,115 @@ It is intentionally limited to an in-order, single-issue pipeline and does not m
 - Tomasulo’s algorithm or scoreboarding
 - RV64I support
 
+-------------------------Forwarding Mechanisms Implemented--------------------------------------------------------
+
+This simulator implements multiple types of data forwarding (bypassing) to reduce pipeline stalls caused by data hazards. The forwarding logic is primarily handled in the forward_ex() function and additional logic inside the EX and MEM stages.
+
+1. EX → EX Forwarding (ALU Result Forwarding)
+
+- Source: EX/MEM pipeline register (previous instruction in EX stage)
+- Condition:
+  - Instruction in EX/MEM is valid
+  - RegWrite = 1
+  - Not a load instruction (MemRead = 0)
+  - Destination register matches source register (rd == rs)
+- Action:
+  - Forward ALU result directly to current EX stage operands
+
+This handles back-to-back ALU dependencies without stalling.
+
+
+2. MEM → EX Forwarding (Load Result, Same Cycle)
+
+- Source: MEM_WB_new (current cycle memory output)
+- Condition:
+  - Instruction is a load (MemToReg = 1)
+  - RegWrite = 1
+  - Destination register matches source register
+- Action:
+  - Forward loaded data immediately to EX stage
+
+This is an aggressive same-cycle forwarding path that reduces load-use penalty.
+
+
+3. MEM/WB → EX Forwarding (Previous Cycle Writeback)
+
+- Source: MEM_WB_old
+- Condition:
+  - Instruction writes to register (RegWrite = 1)
+  - Destination register matches source register
+- Action:
+  - Forward either:
+    - mem_data (for loads), or
+    - alu result (for ALU ops)
+
+This is the standard forwarding path from WB stage to EX stage.
+
+
+4. Explicit MEM → EX Forwarding via mem_forward Signals
+
+- Signals:
+  - mem_forward_valid
+  - mem_forward_rd
+  - mem_forward_data
+- Generated in: MEM_stage()
+- Used in: EX_stage()
+- Purpose:
+  - Forward load data immediately after memory access
+- Condition:
+  - Load instruction in MEM stage
+  - Destination register matches EX stage source register
+- Action:
+  - Override operand values with freshly loaded data
+
+This duplicates and reinforces load forwarding for correctness.
+
+
+5. Store Data Forwarding
+
+- Handles hazards where a store depends on a previous instruction
+- Source:
+  - EX_MEM_old (ALU result)
+  - MEM_WB_old (ALU or load result)
+- Condition:
+  - Destination register of previous instruction matches rs2 (store source)
+- Action:
+  - Forward correct value into store_val
+
+Ensures correct data is written to memory even with dependencies.
+
+
+Summary of Forwarding Paths
+
+EX → EX            : EX/MEM → EX       (ALU dependencies)
+MEM → EX (same)    : MEM (new) → EX    (Load-use same cycle)
+MEM/WB → EX        : WB (old) → EX     (General dependencies)
+MEM → EX (explicit): MEM → EX          (Load-use reinforcement)
+Store Forwarding   : EX/MEM, WB → MEM  (Store hazards)
+
+
+Important Note on Load-Use Hazard
+
+Even with forwarding, the simulator still introduces a stall when:
+
+- A load instruction is immediately followed by an instruction using its result
+
+This is detected in the ID stage, and a bubble is inserted because:
+
+Load data is only available after MEM stage, so EX stage cannot always receive it in time without a stall.
+
+
+Conclusion
+
+The simulator implements a comprehensive forwarding network, including:
+
+- Standard EX and MEM/WB forwarding
+- Same-cycle load forwarding
+- Dedicated memory forwarding signals
+- Store data forwarding
+
+This significantly reduces pipeline stalls while maintaining correctness.
+
 ---
 
 ## Author
