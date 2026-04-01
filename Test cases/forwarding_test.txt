@@ -1,0 +1,22 @@
+# --- FORWARDING UNIT TEST CASE ---
+
+# Test 1: EX-to-EX Forwarding
+# The second instruction needs the ALU result of the first instruction immediately.
+# The CPU will bypass the Register File and forward t0 (15) directly from the EX/MEM pipeline latch to the EX ALU.
+addi t0, zero, 15
+add t1, t0, zero
+
+# Test 2: EX-to-MEM Forwarding (Store Data Forwarding)
+# The store instruction needs the value of t2 (99) to write to memory.
+# The CPU will forward t2 directly from EX/MEM latch into the store_val property of the EX stage.
+addi t2, zero, 99
+sw t2, 4(zero)
+
+# Test 3: Load-Use Hazard & MEM-to-EX Forwarding
+# A load instruction followed by a dependent ALU operation.
+# The CPU MUST inject a 1-cycle pipeline Stall (bubble) because the memory isn't read until the MEM stage!
+# Afterwards, the loaded value (99) is forwarded from MEM/WB directly to the EX ALU.
+lw t3, 4(zero)
+addi t4, t3, 1
+
+halt

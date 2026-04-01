@@ -1,1 +1,24 @@
-a.out
+# Compiled executable binaries
+*.exe
+*.out
+*.app
+*.o
+*.obj
+
+# Simulation trace logs and memory dumps
+trace*.txt
+dump*.txt
+v4_*.txt
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor configuration folders
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore test outputs
+*.log

@@ -1,0 +1,28 @@
+Changelog: 5-Stage RISC-V Pipeline Simulator 
+
+1. Pipeline Infinite Loop Resolution
+   - FIXED: Global data structure leak where `mem_forward_valid` tracking variables locked "stale" array reads into pipeline overrides. Pipeline stalls (bubbles) entering MEM stage correctly invalidate memory forwarding now rather than corrupting ALU registers.
+   - FIXED: Removed brute-force duplicate `forward_ex` calls inside the EX execution routine. Integrated one generalized cycle-accurate network forwarding path.
+
+2. Simulator Termination Correction
+   - FIXED: Simulator strictly infinite-looped `EX: BUBBLE` endlessly on instruction sets lacking explicit `halt` instructions.
+   - REFACTORED: Revised simulator generic loop context (`while()`) to mathematically exit when physical instruction fetch exhaustion occurs combined with completely draining valid hardware latches (graceful completion).
+
+3. Advanced Lexer and Input Validation
+   - REFACTORED: Completely eliminated the previous ~300 line fragile `if-ladder` parser mapping explicitly tied to strict formatting requirements. 
+   - IMPLEMENTED: Dynamic character-normalization string handling. Transparently maps characters like Parentheses `()` and Commas `,` to native whitespace boundaries. Safely parses densely packed instructions mathematically (e.g. `lw x3,0(x1)` vs `lw x3, 0(x1)`).
+   - IMPLEMENTED: Global line-trimming logic stripping legacy `/r` tokens, arbitrary whitespace tokens, and `#` or `//` developer comments allowing human-readable assembly tests.
+
+4. Architecture Specifics (IEEE/RISC V32) 
+   - IMPLEMENTED: Purged implicit primitive generic `C` `int` typing. Fully migrated standard `int32_t` and `uint32_t` mathematical specifications binding architectural execution uniquely identically on older 16-bit compliers and newer 64-bit kernels. 
+
+5. Memory Guard Protection Operations
+   - IMPLEMENTED: Bounded logic safely wrapping memory. Throws clean syntax errors if simulation routines attempt to access illegal misaligned memory offsets (`addr % 4 != 0` or half word `addr % 2 != 0`).
+   - IMPLEMENTED: Pre-emptive out-of-bounds pointer prevention ensuring runaway branch loops querying bounds escaping `DMEM_SIZE` execute process-hault traces instead of violently executing Host OS Segfaults dynamically.
+
+6. CLI Interactive Stepper Capability
+   - IMPLEMENTED: Optional Cycle-by-Cycle pipeline debugging capabilities implemented explicitly manually into `main()`. Toggleable dynamically by invoking compiled binaries with `-s` or `--step` shell arguments.
+   - IMPLEMENTED: Proper unified `-i` (`instructions.txt`) and `-d` (`data.txt`) CLI dynamic file mapping flags to support bulk testing.
+
+7. Repository Restructure & Production Clean Up
+   - OPTIMIZED: Simulator code globally scrubbed, removing excessive boilerplate, duplicated structs, and redundant checks. Total active C code physically dropped from ~1000 dynamically to an extremely dense ~450 lines of modular safety-first code.
